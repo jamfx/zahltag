@@ -1,0 +1,50 @@
+Options -Indexes
+
+# URL-Rewriting auf index.php
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Static assets direkt ausliefern
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Alles andere an index.php
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Sensible Dateien sperren
+<FilesMatch "^config\.php$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(sql|lock|log|md|sh)$">
+    Require all denied
+</FilesMatch>
+
+# Kein Direktzugriff auf Belegfotos (nur über PHP-Script)
+<IfModule mod_rewrite.c>
+    RewriteRule ^uploads/receipts/ - [F,L]
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "0"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(self), microphone=()"
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# PHP-Einstellungen (nur für mod_php; bei PHP-FPM via php.ini oder Hosting-Panel)
+<IfModule mod_php8.c>
+    php_flag display_errors Off
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+</IfModule>
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+</IfModule>

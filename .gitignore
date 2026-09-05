@@ -1,0 +1,8 @@
+config.php
+storage/logs/
+storage/sessions/
+export/
+uploads/receipts/*
+!uploads/receipts/.htaccess
+uploads/logo.*
+*.log
