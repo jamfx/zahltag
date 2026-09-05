@@ -488,18 +488,18 @@ function calculate_settlements(array $balances): array
 function generate_girocode_base64(string $iban, string $name, float $amount, string $reference): string
 {
     try {
-        $qrData = \SepaQr\Data::create()
+        $qrData = (new \SepaQr\SepaQrData())
             ->setName(mb_substr($name, 0, 70))
             ->setIban(strtoupper(preg_replace('/\s+/', '', $iban)))
             ->setAmount($amount)
             ->setRemittanceText(mb_substr($reference, 0, 140));
 
-        $result = \Endroid\QrCode\Builder\Builder::create()
-            ->data((string)$qrData)
-            ->errorCorrectionLevel(\Endroid\QrCode\ErrorCorrectionLevel::Medium)
-            ->size(200)
-            ->margin(4)
-            ->build();
+        $result = (new \Endroid\QrCode\Builder\Builder(
+            data: (string)$qrData,
+            errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Medium,
+            size: 200,
+            margin: 4,
+        ))->build();
 
         return 'data:image/png;base64,' . base64_encode($result->getString());
     } catch (Throwable) {
@@ -573,12 +573,12 @@ function totp_qr_base64(string $secret, string $issuer, string $account): string
          . '&issuer=' . rawurlencode($issuer)
          . '&algorithm=SHA1&digits=6&period=30';
     try {
-        $result = \Endroid\QrCode\Builder\Builder::create()
-            ->data($uri)
-            ->errorCorrectionLevel(\Endroid\QrCode\ErrorCorrectionLevel::Medium)
-            ->size(200)
-            ->margin(4)
-            ->build();
+        $result = (new \Endroid\QrCode\Builder\Builder(
+            data: $uri,
+            errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Medium,
+            size: 200,
+            margin: 4,
+        ))->build();
         return 'data:image/png;base64,' . base64_encode($result->getString());
     } catch (Throwable) {
         return '';

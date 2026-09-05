@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-versions: ['7.1', '7.2', '7.3', '7.4', '8.0']
+        php-versions: ['8.1', '8.2', '8.3', '8.4']
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
@@ -26,10 +26,10 @@ jobs:
 
       - name: Get composer cache directory
         id: composercache
-        run: echo "::set-output name=dir::$(composer config cache-files-dir)"
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
       - name: Cache composer dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ steps.composercache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -38,8 +38,8 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-suggest
 
-      - name: Run linting
-        run: composer run-script lint
+      - name: Run phpstan
+        run: composer run-script analyze
 
-      - name: Run test suite
+      - name: Run phpunit
         run: composer run-script test

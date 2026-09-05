@@ -12,15 +12,16 @@ composer require smhg/sepa-qr-data
 
 ## Usage
 ```php
-use SepaQr\Data;
+use SepaQr\SepaQrData;
 ```
 
 ```php
-$paymentData = Data::create()
+$paymentData = (new SepaQrData())
   ->setName('Name of the beneficiary')
   ->setIban('BE123456789123456789')
   ->setAmount(100); // The amount in Euro
 ```
+After this, you can choose your preferred QR code library and use this data as the input. Below are 2 examples.
 
 ### With [endroid/qr-code](https://github.com/endroid/qr-code)
 #### Installation 
@@ -96,7 +97,7 @@ Set the service tag. Currently (?) only one value is allowed: BCD.
 #### setVersion($version = 2)
 Set the SEPA QR standard version. In version 1 a BIC is mandatory. In version 2 a BIC is only mandatory outside EEA countries.
 
-#### setCharacterSet($characterSet = Data::UTF_8)
+#### setCharacterSet($characterSet = SepaQrData::UTF_8)
 Set the character set. Available constants are `UTF_8`, `ISO8859_5`, `ISO8859_1`, `ISO8859_7`, `ISO8859_2`, `ISO8859_10`, `ISO8859_4` or `ISO8859_15`. Remember to also use/set this character set in the surrounding parts of your application (including endroid/qr-code).
 
 #### setIdentification($identification = 'SCT')
@@ -121,15 +122,15 @@ composer require smhg/sepa-qr-data endroid/qr-code
 **3. Replace/add use declarations**
 ```diff
 -use \SepaQr\SepaQr;
-+use \SepaQr\Data;
++use \SepaQr\SepaQrData;
 +use \Endroid\QrCode\Builder\Builder;
 +use \Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelMedium;
 ```
 
 **4. Adapt QR code generation accordingly**
 ```php
-$paymentData = Data::create();
-// ->set...
+$paymentData = new SepaQrData();
+// $paymentData->set...
 
 Builder::create()
     ->errorCorrectionLevel(new ErrorCorrectionLevelMedium())
