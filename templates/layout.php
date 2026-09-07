@@ -56,7 +56,7 @@ $navLinks     = $navLinks ?? [];
             <span class="site-name"><?= e($siteName) ?></span>
         </a>
 
-        <?php if (!empty($navLinks)): ?>
+        <?php if (!empty($navLinks) || count($availableLangs) > 1): ?>
         <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Menü">
             <span class="hamburger"></span>
         </button>
