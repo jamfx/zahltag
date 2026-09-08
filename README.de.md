@@ -23,6 +23,10 @@ Gedacht als selbst gehostete Alternative zu Splitwise & Co. – ohne Account ode
 - **Geführter Installationsassistent** — ein web-basierter Installer schreibt `config.php` und legt das Datenbankschema an; kein CLI-Zugriff nötig.
 - **Cron-Bereinigung** — ein optionales Standalone-Script (`cleanup.php`) löscht alte/leere Gruppen nach Zeitplan.
 
+## 🔗 Demo
+
+Eine Live-Demo findest du unter: **[wunschliste.n-systeme.de](https://wunschliste.n-systeme.de)**
+
 ## Voraussetzungen
 
 - PHP >= 8.1 mit den Erweiterungen `pdo_mysql`, `gd` und `mbstring`

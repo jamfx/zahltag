@@ -23,6 +23,10 @@ Think Splitwise, but self-hosted on your own webspace, with no account or app re
 - **Guided installer** — a web-based install wizard writes `config.php` and sets up the database schema; no CLI access required.
 - **Cron cleanup** — an optional standalone script (`cleanup.php`) purges old/empty groups on a schedule.
 
+## 🔗 Demo
+
+You can see a Live-Demo at: **[wunschliste.n-systeme.de](https://wunschliste.n-systeme.de)**
+
 ## Requirements
 
 - PHP >= 8.1 with the `pdo_mysql`, `gd`, and `mbstring` extensions
