@@ -25,7 +25,7 @@ Think Splitwise, but self-hosted on your own webspace, with no account or app re
 
 ## 🔗 Demo
 
-You can see a Live-Demo at: **[wunschliste.n-systeme.de](https://wunschliste.n-systeme.de)**
+You can see a Live-Demo at: **[zahltag.n-systeme.de](https://zahltag.n-systeme.de)**
 
 ## Requirements
 

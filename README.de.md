@@ -25,7 +25,7 @@ Gedacht als selbst gehostete Alternative zu Splitwise & Co. – ohne Account ode
 
 ## 🔗 Demo
 
-Eine Live-Demo findest du unter: **[wunschliste.n-systeme.de](https://wunschliste.n-systeme.de)**
+Eine Live-Demo findest du unter: **[zahltag.n-systeme.de](https://zahltag.n-systeme.de)**
 
 ## Voraussetzungen
 
