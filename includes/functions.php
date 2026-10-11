@@ -494,17 +494,30 @@ function generate_girocode_base64(string $iban, string $name, float $amount, str
             ->setAmount($amount)
             ->setRemittanceText(mb_substr($reference, 0, 140));
 
-        $result = (new \Endroid\QrCode\Builder\Builder(
-            data: (string)$qrData,
-            errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Medium,
-            size: 200,
-            margin: 4,
-        ))->build();
-
-        return 'data:image/png;base64,' . base64_encode($result->getString());
-    } catch (Throwable) {
+        return qr_data_uri((string)$qrData);
+    } catch (Throwable $e) {
+        error_log('GiroCode generation failed: ' . $e->getMessage());
         return '';
     }
+}
+
+/**
+ * Render text as a QR code data: URI. Uses PNG when the GD extension is
+ * available, otherwise falls back to SVG (no GD required; Dompdf and
+ * browsers both render SVG data URIs).
+ */
+function qr_data_uri(string $data): string
+{
+    $useGd = extension_loaded('gd');
+    $result = (new \Endroid\QrCode\Builder\Builder(
+        writer: $useGd ? new \Endroid\QrCode\Writer\PngWriter() : new \Endroid\QrCode\Writer\SvgWriter(),
+        data: $data,
+        errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Medium,
+        size: 200,
+        margin: 4,
+    ))->build();
+
+    return $result->getDataUri();
 }
 
 // ── TOTP (RFC 6238) ───────────────────────────────────────────────────────────
@@ -573,14 +586,9 @@ function totp_qr_base64(string $secret, string $issuer, string $account): string
          . '&issuer=' . rawurlencode($issuer)
          . '&algorithm=SHA1&digits=6&period=30';
     try {
-        $result = (new \Endroid\QrCode\Builder\Builder(
-            data: $uri,
-            errorCorrectionLevel: \Endroid\QrCode\ErrorCorrectionLevel::Medium,
-            size: 200,
-            margin: 4,
-        ))->build();
-        return 'data:image/png;base64,' . base64_encode($result->getString());
-    } catch (Throwable) {
+        return qr_data_uri($uri);
+    } catch (Throwable $e) {
+        error_log('TOTP QR generation failed: ' . $e->getMessage());
         return '';
     }
 }
