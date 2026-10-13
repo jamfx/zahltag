@@ -54,7 +54,7 @@ try {
 } catch (Throwable) {}
 
 // Build filename
-$safeGroupName = preg_replace('/[^\p{L}\p{N}_\-]/u', '_', $group['name']);
+$safeGroupName = ascii_filename_part($group['name']);
 $dateStr       = date('Y-m-d');
 $filename      = str_replace(
     ['{group}', '{date}'],

@@ -113,6 +113,30 @@ function current_url(): string
     return $scheme . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 }
 
+/**
+ * Turn arbitrary text (e.g. a group name) into a plain-ASCII string that is
+ * safe to use in download filenames: umlauts become ae/oe/ue/ss, other accents
+ * are stripped, anything else becomes an underscore.
+ */
+function ascii_filename_part(string $text): string
+{
+    $text = strtr($text, [
+        'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'Ä' => 'Ae', 'Ö' => 'Oe', 'Ü' => 'Ue', 'ß' => 'ss',
+    ]);
+    if (class_exists('Transliterator')) {
+        $t = \Transliterator::create('Any-Latin; Latin-ASCII');
+        if ($t !== null) {
+            $text = $t->transliterate($text) ?: $text;
+        }
+    }
+    if (class_exists('Normalizer')) {
+        $text = preg_replace('/\p{Mn}+/u', '', \Normalizer::normalize($text, \Normalizer::FORM_D) ?: $text) ?? $text;
+    }
+    $text = preg_replace('/[^A-Za-z0-9_\-]+/', '_', $text) ?? '';
+    $text = trim($text, '_');
+    return $text !== '' ? $text : 'export';
+}
+
 function format_currency(float $amount, string $currency = 'EUR'): string
 {
     $lang = $_SESSION['lang'] ?? 'de';
