@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `groups` (
     `pdf_margin_bottom`       DECIMAL(3,1) NULL,
     `pdf_margin_left`         DECIMAL(3,1) NULL,
     `archived_at`             DATETIME NULL,
+    `archive_at`              DATETIME NULL COMMENT 'Scheduled automatic archiving (banner shown while set)',
     `created_at`              DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

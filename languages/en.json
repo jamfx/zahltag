@@ -210,6 +210,12 @@
             "welcome": "Welcome, {name}!",
             "group_admin_link": "Manage group (admin)"
         },
+        "archive_banner": {
+            "title": "This group will be archived in {days} days (on {date}).",
+            "text": "Groups are archived automatically when they have not been used for a long time or all amounts are settled. Archived groups are read-only and are permanently deleted after {cleanup} days. New activity (e.g. a new expense) cancels the archiving automatically. Tip: export the settlement as PDF or CSV beforehand.",
+            "extend": "Extend by {months} month(s)",
+            "extended": "Archiving has been postponed by {months} month(s)."
+        },
         "archived": "Archived",
         "not_found": "Group not found.",
         "archived_notice": "This group is archived."
@@ -470,7 +476,14 @@
             "multi_currency": "Enable foreign currencies",
             "multi_currency_hint": "Allows expenses in other currencies (Frankfurter API).",
             "max_receipt_size": "Max. receipt file size (MB)",
-            "cleanup_days": "Auto-delete archived groups after (days, 0 = disabled)",
+            "cleanup_days": "Permanently delete archived groups after (days, 0 = never)",
+            "retention_title": "Automatic archiving and deletion",
+            "retention_hint": "Groups are archived when inactive for a long time or when all amounts are settled. Everyone sees a notice banner beforehand; only the group admin can extend. 0 disables the respective rule. These values appear automatically in the help texts.",
+            "inactivity_months": "Archive inactive groups after (months, 0 = never)",
+            "archive_warning_days": "Show notice banner before archiving (days)",
+            "settled_archive_months": "Archive settled groups after (months, 0 = never)",
+            "archive_extend_months": "Extension by group admin (months)",
+            "empty_group_days": "Delete empty groups without expenses after (days, 0 = never)",
             "pdf_margins": "PDF export margins (defaults)",
             "pdf_margins_hint": "Group creators can customise these values individually for their group. Top and bottom: 1 cm by default. Left (binding margin): 2.5 cm by default.",
             "pdf_margin_top": "Top (cm)",
@@ -492,7 +505,7 @@
             "email_test_success": "Test email sent.",
             "email_test_error": "Test email failed: {error}",
             "section_cron": "Cron Job / Automatic Cleanup",
-            "cron_section_hint": "Deletes archived groups past the retention period and empty groups with no expenses. Cron jobs can be triggered via crontab (directly on the server) or via a webcron URL (external service).",
+            "cron_section_hint": "Automatically archives inactive and settled groups, deletes archived groups past the retention period and empty groups with no expenses. Cron jobs can be triggered via crontab (directly on the server) or via a webcron URL (external service).",
             "cron_tab_label": "Crontab entry (CLI, for servers with SSH/cron access)",
             "cron_tab_hint": "Recommended if you have direct server/cron access: paste this entry into your crontab (runs daily at 03:00). Calls the script locally, without an HTTP round-trip.",
             "cron_tab_php_hint": "If the PHP path differs on your server, adjust {php} accordingly.",

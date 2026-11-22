@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
-$cleanupDays = (int)setting('cleanup_days', 90);
+$archiveCfg   = archive_settings();
+$cleanupDays = $archiveCfg['cleanup_days'];
+$inactMonths = $archiveCfg['inactivity_months'];
+$warnDays    = $archiveCfg['warning_days'];
+$settledMo   = $archiveCfg['settled_months'];
+$extendMo    = $archiveCfg['extend_months'];
+$emptyDays   = $archiveCfg['empty_days'];
 $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
 ?>
 <div style="max-width:760px;margin-inline:auto;">
@@ -81,7 +87,13 @@ $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
         ],
         [
             'q' => 'Wie lange bleibt meine Gruppe online?',
-            'a' => "Unbegrenzt, solange sie aktiv genutzt wird. Archivierte Gruppen sowie leere Gruppen ohne Ausgaben werden nach aktuell {$cleanupDays}&nbsp;Tagen automatisch gelöscht (vom Betreiber der Instanz einstellbar).",
+            'a' => "Solange sie genutzt wird. "
+                 . ($inactMonths > 0 ? "Gruppen ohne Aktivität (neue Ausgaben, Zahlungen oder Mitglieder) werden nach {$inactMonths}&nbsp;Monaten automatisch archiviert; {$warnDays}&nbsp;Tage vorher erscheint für alle Mitglieder ein Hinweis. " : "")
+                 . ($settledMo > 0 ? "Sind alle Beträge beglichen (Gruppe abgeschlossen), wird sie nach {$settledMo}&nbsp;Monat(en) archiviert; auch hier erscheint vorher ein Hinweis. " : "")
+                 . "Der Gruppen-Admin kann die Archivierung im Hinweis jeweils um {$extendMo}&nbsp;Monat(e) verschieben; neue Aktivität hebt sie ebenfalls auf. "
+                 . ($cleanupDays > 0 ? "Archivierte Gruppen werden nach {$cleanupDays}&nbsp;Tagen endgültig gelöscht" : "Archivierte Gruppen bleiben erhalten")
+                 . ($emptyDays > 0 ? ", leere Gruppen ohne Ausgaben nach {$emptyDays}&nbsp;Tagen." : ".")
+                 . " Alle Fristen sind vom Betreiber der Instanz einstellbar.",
         ],
         [
             'q' => 'Kann ich die Abrechnung ausdrucken oder offline mitnehmen?',
@@ -179,7 +191,7 @@ $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
                     </tr>
                     <tr>
                         <td>Archivieren</td>
-                        <td>Markiert die Gruppe als abgeschlossen. Archivierte Gruppen werden nach der eingestellten Aufbewahrungsfrist automatisch gelöscht (siehe FAQ oben).</td>
+                        <td>Markiert die Gruppe als abgeschlossen. Archivierte Gruppen sind schreibgeschützt und werden nach <?= (int)$cleanupDays ?>&nbsp;Tagen automatisch gelöscht (siehe FAQ oben).</td>
                     </tr>
                     <tr>
                         <td>Löschen</td>
@@ -284,7 +296,7 @@ $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
             <li>Der Zugriff erfolgt über lange, zufällige Links (Tokens) statt über Benutzerkonten. Wer einen Link kennt, hat Zugriff auf die jeweilige Ansicht – Links daher nicht öffentlich teilen.</li>
             <li>Belegfotos und -PDFs sind nicht direkt über das Internet abrufbar, sondern nur für angemeldete Mitglieder der jeweiligen Gruppe.</li>
             <li>Zahlungsdaten (IBAN, PayPal, Wero) sind nur für aktive Mitglieder derselben Gruppe sichtbar.</li>
-            <li>Archivierte und leere Gruppen werden nach Ablauf der Aufbewahrungsfrist automatisch inklusive aller Daten gelöscht.</li>
+            <li>Inaktive und abgeschlossene Gruppen werden automatisch archiviert (vorher erscheint ein Hinweis). Archivierte Gruppen werden nach <?= (int)$cleanupDays ?>&nbsp;Tagen inklusive aller Daten gelöscht, leere Gruppen nach <?= (int)$emptyDays ?>&nbsp;Tagen.</li>
         </ul>
     </div>
 

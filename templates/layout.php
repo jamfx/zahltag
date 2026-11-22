@@ -139,6 +139,32 @@ $navLinks     = $navLinks ?? [];
         </div>
         <?php endforeach; ?>
 
+        <?php
+        // Banner: automatic archiving scheduled (all group pages; extension button for group admin only)
+        $archiveNotice = (isset($group) && is_array($group)) ? group_archive_notice($group) : null;
+        if ($archiveNotice !== null):
+            $isGroupAdminView = isset($adminToken) && is_string($adminToken) && $adminToken !== ''
+                && hash_equals((string)$group['admin_token'], $adminToken);
+            $archiveCfg = archive_settings();
+        ?>
+        <div class="flash flash--warning" role="alert" style="flex-wrap:wrap;align-items:flex-start">
+            <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+            <span style="flex:1;min-width:220px">
+                <strong><?= e(__('group.archive_banner.title', ['days' => $archiveNotice['days'], 'date' => $archiveNotice['date']])) ?></strong><br>
+                <?= e(__('group.archive_banner.text', ['cleanup' => $archiveCfg['cleanup_days']])) ?>
+            </span>
+            <?php if ($isGroupAdminView): ?>
+            <form method="post" action="<?= e(base_url('manage/' . $adminToken)) ?>" style="margin:0">
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                <input type="hidden" name="action" value="extend_archive">
+                <button type="submit" class="btn btn--secondary btn--sm">
+                    <?= e(__('group.archive_banner.extend', ['months' => $archiveCfg['extend_months']])) ?>
+                </button>
+            </form>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <?= $content ?? '' ?>
 
     </div>

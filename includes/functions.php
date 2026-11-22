@@ -329,10 +329,24 @@ function log_activity(int $groupId, ?int $memberId, string $action, array $detai
             'INSERT INTO activity_log (group_id, member_id, action, details) VALUES (?, ?, ?, ?)'
         );
         $stmt->execute([$groupId, $memberId, $action, $details ? json_encode($details, JSON_UNESCAPED_UNICODE) : null]);
+
+        // Real activity cancels a scheduled automatic archiving immediately.
+        // (If the group is still settled/inactive, the cron job schedules it again.)
+        if (in_array($action, ARCHIVE_ACTIVITY_ACTIONS, true)) {
+            db()->prepare('UPDATE groups SET archive_at = NULL WHERE id = ? AND archive_at IS NOT NULL')
+                ->execute([$groupId]);
+        }
     } catch (Throwable) {
         // Logging must never break the application
     }
 }
+
+/** Actions that count as "activity" for the automatic archiving. */
+const ARCHIVE_ACTIVITY_ACTIONS = [
+    'expense_added', 'expense_edited', 'expense_deleted',
+    'payment_marked', 'payment_confirmed',
+    'member_joined', 'member_deactivated',
+];
 
 function parse_amount(string $input): float
 {
@@ -687,58 +701,257 @@ function admin_login_clear_block(string $ip): void
 }
 
 /**
+ * All retention periods in one place (configurable in Admin → Settings).
+ * 0 disables the respective rule.
+ */
+function archive_settings(): array
+{
+    return [
+        'inactivity_months' => max(0, (int)setting('inactivity_months', 9)),       // inactive → archive
+        'warning_days'      => max(0, (int)setting('archive_warning_days', 30)),   // banner lead time
+        'settled_months'    => max(0, (int)setting('settled_archive_months', 1)),  // settled → archive
+        'extend_months'     => max(1, (int)setting('archive_extend_months', 1)),   // admin extension
+        'cleanup_days'      => max(0, (int)setting('cleanup_days', 30)),           // archived → delete
+        'empty_days'        => max(0, (int)setting('empty_group_days', 90)),       // empty group → delete
+    ];
+}
+
+/** Adds groups.archive_at on existing installations (runs once, cheap check). */
+function ensure_archive_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    try {
+        $has = db()->query("SHOW COLUMNS FROM `groups` LIKE 'archive_at'")->fetch();
+        if (!$has) {
+            db()->exec('ALTER TABLE `groups` ADD COLUMN `archive_at` DATETIME NULL AFTER `archived_at`');
+        }
+    } catch (Throwable) {}
+}
+
+/**
+ * A group is "settled" when it has expenses, no unconfirmed payments are open
+ * and all balances (incl. confirmed payments) are zero.
+ */
+function group_is_settled(int $groupId): bool
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT (SELECT COUNT(*) FROM expenses WHERE group_id = ?) AS ex,
+                    (SELECT COUNT(*) FROM payments WHERE group_id = ? AND confirmed_by_recipient = 0) AS open_pay'
+        );
+        $stmt->execute([$groupId, $groupId]);
+        $row = $stmt->fetch();
+        if (!$row || (int)$row['ex'] === 0 || (int)$row['open_pay'] > 0) {
+            return false;
+        }
+    } catch (Throwable) {
+        return false;
+    }
+
+    foreach (calculate_balances($groupId) as $b) {
+        if (abs((float)$b['balance']) >= 0.01) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Schedules and executes the automatic archiving:
+ *  - settled group            → archive_at = now + settled_months
+ *  - inactive for N months    → banner from (N months − warning_days), archive at N months
+ *  - archive_at reached       → group is archived (then cleanup_days applies)
+ *  - no longer settled/inactive (new activity) → schedule is removed
+ */
+function schedule_group_archiving(): void
+{
+    ensure_archive_schema();
+    $cfg = archive_settings();
+
+    try {
+        $now = new DateTimeImmutable((string)db()->query('SELECT NOW()')->fetchColumn());
+
+        $rows = db()->query(
+            "SELECT g.id, g.archive_at,
+                    GREATEST(
+                        COALESCE(g.created_at, NOW()),
+                        COALESCE((SELECT MAX(GREATEST(e.created_at, COALESCE(e.updated_at, e.created_at)))
+                                  FROM expenses e WHERE e.group_id = g.id), g.created_at),
+                        COALESCE((SELECT MAX(GREATEST(p.created_at, COALESCE(p.confirmed_at, p.created_at)))
+                                  FROM payments p WHERE p.group_id = g.id), g.created_at),
+                        COALESCE((SELECT MAX(m.created_at) FROM members m WHERE m.group_id = g.id), g.created_at),
+                        COALESCE((SELECT MAX(a.created_at) FROM activity_log a
+                                  WHERE a.group_id = g.id
+                                    AND a.action IN ('expense_added','expense_edited','expense_deleted',
+                                                     'payment_marked','payment_confirmed',
+                                                     'member_joined','member_deactivated')), g.created_at)
+                    ) AS last_activity
+             FROM `groups` g
+             WHERE g.archived_at IS NULL"
+        )->fetchAll();
+
+        foreach ($rows as $row) {
+            $gid       = (int)$row['id'];
+            $archiveAt = $row['archive_at'] ? new DateTimeImmutable($row['archive_at']) : null;
+
+            $settled = $cfg['settled_months'] > 0 && group_is_settled($gid);
+
+            $inactiveAt = null;
+            $inWarning  = false;
+            if ($cfg['inactivity_months'] > 0 && $row['last_activity']) {
+                $inactiveAt = (new DateTimeImmutable($row['last_activity']))
+                    ->modify('+' . $cfg['inactivity_months'] . ' months');
+                $inWarning  = $now >= $inactiveAt->modify('-' . $cfg['warning_days'] . ' days');
+            }
+
+            if ($archiveAt === null) {
+                if ($settled) {
+                    $archiveAt = $now->modify('+' . $cfg['settled_months'] . ' months');
+                } elseif ($inWarning) {
+                    // Always give the full warning period, even if the cron job was down
+                    $archiveAt = max($inactiveAt, $now->modify('+' . $cfg['warning_days'] . ' days'));
+                }
+                if ($archiveAt !== null) {
+                    db()->prepare('UPDATE `groups` SET archive_at = ? WHERE id = ?')
+                        ->execute([$archiveAt->format('Y-m-d H:i:s'), $gid]);
+                }
+                continue;
+            }
+
+            if (!$settled && !$inWarning) {
+                // Condition no longer applies (new activity) → cancel
+                db()->prepare('UPDATE `groups` SET archive_at = NULL WHERE id = ?')->execute([$gid]);
+                continue;
+            }
+
+            if ($archiveAt <= $now) {
+                db()->prepare('UPDATE `groups` SET archived_at = NOW(), archive_at = NULL WHERE id = ? AND archived_at IS NULL')
+                    ->execute([$gid]);
+                log_activity($gid, null, 'group_auto_archived');
+            }
+        }
+    } catch (Throwable) {}
+}
+
+/** Group admin extends the scheduled archiving date. Returns true on success. */
+function extend_group_archiving(int $groupId): bool
+{
+    $months = archive_settings()['extend_months'];
+    try {
+        $stmt = db()->prepare(
+            'UPDATE `groups` SET archive_at = DATE_ADD(archive_at, INTERVAL ? MONTH)
+             WHERE id = ? AND archived_at IS NULL AND archive_at IS NOT NULL'
+        );
+        $stmt->execute([$months, $groupId]);
+        return $stmt->rowCount() > 0;
+    } catch (Throwable) {
+        return false;
+    }
+}
+
+/**
+ * Banner data for a group: null if no archiving is scheduled.
+ * Returns ['days' => int, 'date' => 'd.m.Y'].
+ */
+function group_archive_notice(?array $group): ?array
+{
+    if (!$group || empty($group['archive_at']) || !empty($group['archived_at'])) {
+        return null;
+    }
+    try {
+        $now = new DateTimeImmutable((string)db()->query('SELECT NOW()')->fetchColumn());
+        $at  = new DateTimeImmutable($group['archive_at']);
+    } catch (Throwable) {
+        return null;
+    }
+    $days = (int)ceil(($at->getTimestamp() - $now->getTimestamp()) / 86400);
+    return ['days' => max(0, $days), 'date' => $at->format('d.m.Y')];
+}
+
+/**
+ * Permanently deletes a group incl. receipt files and all dependent rows.
+ * Payments/expenses reference members without CASCADE, so a plain
+ * "DELETE FROM groups" fails for groups with payments – delete in order.
+ */
+function delete_group_completely(int $groupId): bool
+{
+    try {
+        $stmtR = db()->prepare(
+            'SELECT receipt_path FROM expenses WHERE group_id = ? AND receipt_path IS NOT NULL'
+        );
+        $stmtR->execute([$groupId]);
+        foreach ($stmtR->fetchAll() as $r) {
+            $filePath = BASE_PATH . '/' . ltrim($r['receipt_path'], '/');
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
+        $receiptDir = BASE_PATH . '/uploads/receipts/' . $groupId;
+        if (is_dir($receiptDir)) {
+            @rmdir($receiptDir);
+        }
+
+        db()->beginTransaction();
+        db()->prepare('DELETE FROM payments WHERE group_id = ?')->execute([$groupId]);
+        db()->prepare('DELETE FROM expenses WHERE group_id = ?')->execute([$groupId]);
+        db()->prepare('DELETE FROM members WHERE group_id = ?')->execute([$groupId]);
+        db()->prepare('DELETE FROM `groups` WHERE id = ?')->execute([$groupId]);
+        db()->commit();
+        return true;
+    } catch (Throwable) {
+        if (db()->inTransaction()) {
+            db()->rollBack();
+        }
+        return false;
+    }
+}
+
+/**
  * Delete archived groups older than cleanup_days, and empty groups
- * (0 expenses) created more than cleanup_days days ago.
+ * (0 expenses) created more than empty_group_days days ago.
+ * Also runs the automatic archiving scheduler first.
  * Runs silently; called on admin dashboard load and via cron endpoint.
  */
 function cleanup_archived_groups(): void
 {
-    $days = (int)setting('cleanup_days', 90);
-    if ($days <= 0) {
-        return;
-    }
+    schedule_group_archiving();
+
+    $cfg = archive_settings();
+    $days      = $cfg['cleanup_days'];
+    $emptyDays = $cfg['empty_days'];
 
     try {
-        // Archived groups past retention period
-        $stmt = db()->prepare(
-            'SELECT id FROM groups
-             WHERE archived_at IS NOT NULL
-               AND archived_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
-        );
-        $stmt->execute([$days]);
-        $archivedIds = array_column($stmt->fetchAll(), 'id');
+        $archivedIds = [];
+        if ($days > 0) {
+            $stmt = db()->prepare(
+                'SELECT id FROM `groups`
+                 WHERE archived_at IS NOT NULL
+                   AND archived_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+            );
+            $stmt->execute([$days]);
+            $archivedIds = array_column($stmt->fetchAll(), 'id');
+        }
 
-        // Empty groups (no expenses) created more than cleanup_days ago
-        $stmtEmpty = db()->prepare(
-            'SELECT g.id FROM groups g
-             WHERE g.archived_at IS NULL
-               AND g.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-               AND NOT EXISTS (SELECT 1 FROM expenses e WHERE e.group_id = g.id)'
-        );
-        $stmtEmpty->execute([$days]);
-        $emptyIds = array_column($stmtEmpty->fetchAll(), 'id');
+        $emptyIds = [];
+        if ($emptyDays > 0) {
+            $stmtEmpty = db()->prepare(
+                'SELECT g.id FROM `groups` g
+                 WHERE g.archived_at IS NULL
+                   AND g.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+                   AND NOT EXISTS (SELECT 1 FROM expenses e WHERE e.group_id = g.id)'
+            );
+            $stmtEmpty->execute([$emptyDays]);
+            $emptyIds = array_column($stmtEmpty->fetchAll(), 'id');
+        }
 
         $groupIds = array_unique(array_merge($archivedIds, $emptyIds));
 
         foreach ($groupIds as $gid) {
-            // Remove receipt files first
-            $stmtR = db()->prepare(
-                'SELECT receipt_path FROM expenses WHERE group_id = ? AND receipt_path IS NOT NULL'
-            );
-            $stmtR->execute([$gid]);
-            foreach ($stmtR->fetchAll() as $r) {
-                $filePath = BASE_PATH . '/' . ltrim($r['receipt_path'], '/');
-                if (file_exists($filePath)) {
-                    @unlink($filePath);
-                }
-            }
-            // Also clean up the receipts subdirectory if empty
-            $receiptDir = BASE_PATH . '/uploads/receipts/' . $gid;
-            if (is_dir($receiptDir)) {
-                @rmdir($receiptDir);
-            }
-
-            db()->prepare('DELETE FROM groups WHERE id = ?')->execute([$gid]);
+            delete_group_completely((int)$gid);
         }
     } catch (Throwable) {}
 }

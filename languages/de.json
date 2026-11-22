@@ -210,6 +210,12 @@
             "welcome": "Willkommen, {name}!",
             "group_admin_link": "Gruppe verwalten (Admin)"
         },
+        "archive_banner": {
+            "title": "Diese Gruppe wird in {days} Tagen archiviert (am {date}).",
+            "text": "Gruppen werden automatisch archiviert, wenn sie lange nicht genutzt wurden oder alle Beträge beglichen sind. Archivierte Gruppen sind schreibgeschützt und werden nach {cleanup} Tagen endgültig gelöscht. Neue Aktivität (z. B. eine neue Ausgabe) hebt die Archivierung automatisch auf. Tipp: Exportiere vorher die Abrechnung als PDF oder CSV.",
+            "extend": "Um {months} Monat(e) verlängern",
+            "extended": "Die Archivierung wurde um {months} Monat(e) verschoben."
+        },
         "archived": "Archiviert",
         "not_found": "Gruppe nicht gefunden.",
         "archived_notice": "Diese Gruppe ist archiviert."
@@ -470,7 +476,14 @@
             "multi_currency": "Fremdwährungen aktivieren",
             "multi_currency_hint": "Ermöglicht Ausgaben in anderen Währungen (Frankfurter API).",
             "max_receipt_size": "Max. Beleg-Dateigröße (MB)",
-            "cleanup_days": "Archivierte Gruppen automatisch löschen nach (Tagen, 0 = deaktiviert)",
+            "cleanup_days": "Archivierte Gruppen endgültig löschen nach (Tagen, 0 = nie)",
+            "retention_title": "Automatische Archivierung und Löschung",
+            "retention_hint": "Gruppen werden archiviert, wenn sie lange inaktiv sind oder alle Beträge beglichen wurden. Alle Beteiligten sehen vorher einen Hinweis-Banner, nur der Gruppen-Admin kann verlängern. 0 deaktiviert die jeweilige Regel. Diese Werte erscheinen automatisch in den Hilfetexten.",
+            "inactivity_months": "Inaktive Gruppen archivieren nach (Monaten, 0 = nie)",
+            "archive_warning_days": "Hinweis-Banner vor der Archivierung (Tage)",
+            "settled_archive_months": "Abgeschlossene Gruppen archivieren nach (Monaten, 0 = nie)",
+            "archive_extend_months": "Verlängerung durch Gruppen-Admin (Monate)",
+            "empty_group_days": "Leere Gruppen ohne Ausgaben löschen nach (Tagen, 0 = nie)",
             "pdf_margins": "PDF-Exportränder (Standardwerte)",
             "pdf_margins_hint": "Gruppenersteller können diese Werte für ihre Gruppe individuell anpassen. Oben und unten: Standardmäßig 1 cm. Links (Heftrand): Standardmäßig 2,5 cm.",
             "pdf_margin_top": "Oben (cm)",
@@ -492,7 +505,7 @@
             "email_test_success": "Test-E-Mail gesendet.",
             "email_test_error": "Test-E-Mail fehlgeschlagen: {error}",
             "section_cron": "Cron-Job / Automatische Bereinigung",
-            "cron_section_hint": "Löscht archivierte Gruppen nach Ablauf der Frist sowie leere Gruppen ohne Ausgaben. Cron-Jobs können per Crontab (direkt auf dem Server) oder per Webcron-URL (externer Dienst) ausgelöst werden.",
+            "cron_section_hint": "Archiviert inaktive und abgeschlossene Gruppen automatisch, löscht archivierte Gruppen nach Ablauf der Frist sowie leere Gruppen ohne Ausgaben. Cron-Jobs können per Crontab (direkt auf dem Server) oder per Webcron-URL (externer Dienst) ausgelöst werden.",
             "cron_tab_label": "Crontab-Eintrag (CLI, für Server mit SSH/Cron-Zugriff)",
             "cron_tab_hint": "Empfohlen, wenn direkter Server-/Cron-Zugriff besteht: Diesen Eintrag in die Crontab einfügen (täglich um 03:00 Uhr). Ruft das Skript lokal auf, ohne HTTP-Umweg.",
             "cron_tab_php_hint": "Falls der PHP-Pfad auf dem Server abweicht, muss {php} entsprechend angepasst werden.",

@@ -234,20 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($confirmedName !== $group['name']) {
             $errors[] = __('group.settings.delete_confirm2') . ' (' . __('common.error') . ')';
         } else {
-            // Remove receipt files
-            $stmtReceipts = db()->prepare(
-                'SELECT receipt_path FROM expenses WHERE group_id = ? AND receipt_path IS NOT NULL'
-            );
-            $stmtReceipts->execute([$group['id']]);
-            foreach ($stmtReceipts->fetchAll() as $r) {
-                $filePath = BASE_PATH . '/' . ltrim($r['receipt_path'], '/');
-                if (file_exists($filePath)) {
-                    @unlink($filePath);
-                }
-            }
-
-            $stmtDel = db()->prepare('DELETE FROM groups WHERE id = ?');
-            $stmtDel->execute([$group['id']]);
+            delete_group_completely((int)$group['id']);
 
             flash('success', __('common.delete'));
             redirect('/');

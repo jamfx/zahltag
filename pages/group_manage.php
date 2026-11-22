@@ -4,6 +4,17 @@ declare(strict_types=1);
 $adminToken = $params['admin_token'] ?? '';
 $group      = require_group_admin($adminToken);
 
+// Extend scheduled automatic archiving (button in the archive banner)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    if (($_POST['action'] ?? '') === 'extend_archive') {
+        if (extend_group_archiving((int)$group['id'])) {
+            flash('success', __('group.archive_banner.extended', ['months' => archive_settings()['extend_months']]));
+        }
+    }
+    redirect('/manage/' . $adminToken);
+}
+
 // Load stats
 $stats = ['members' => 0, 'expenses' => 0, 'total' => 0.0];
 try {

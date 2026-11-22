@@ -32,7 +32,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $defaultCurrency = trim($_POST['default_currency']   ?? 'EUR');
         $multiCurrency   = isset($_POST['multi_currency_enabled']) ? '1' : '0';
         $maxReceipt      = max(1, min(50, (int)($_POST['max_receipt_size_mb'] ?? 5)));
-        $cleanupDays     = max(0, (int)($_POST['cleanup_days'] ?? 90));
+        $cleanupDays     = max(0, (int)($_POST['cleanup_days'] ?? 30));
+        $inactivityMonths = max(0, min(120, (int)($_POST['inactivity_months']      ?? 9)));
+        $warningDays      = max(0, min(365, (int)($_POST['archive_warning_days']   ?? 30)));
+        $settledMonths    = max(0, min(120, (int)($_POST['settled_archive_months'] ?? 1)));
+        $extendMonths     = max(1, min(120, (int)($_POST['archive_extend_months']  ?? 1)));
+        $emptyDays        = max(0, (int)($_POST['empty_group_days'] ?? 90));
         $pdfMarginTop    = max(0.0, min(5.0, round((float)($_POST['pdf_margin_top']    ?? 1.0), 1)));
         $pdfMarginRight  = max(0.0, min(5.0, round((float)($_POST['pdf_margin_right']  ?? 1.0), 1)));
         $pdfMarginBottom = max(0.0, min(5.0, round((float)($_POST['pdf_margin_bottom'] ?? 1.0), 1)));
@@ -50,6 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'multi_currency_enabled'  => $multiCurrency,
             'max_receipt_size_mb'     => (string)$maxReceipt,
             'cleanup_days'            => (string)$cleanupDays,
+            'inactivity_months'       => (string)$inactivityMonths,
+            'archive_warning_days'    => (string)$warningDays,
+            'settled_archive_months'  => (string)$settledMonths,
+            'archive_extend_months'   => (string)$extendMonths,
+            'empty_group_days'        => (string)$emptyDays,
             'pdf_margin_top'          => (string)$pdfMarginTop,
             'pdf_margin_right'        => (string)$pdfMarginRight,
             'pdf_margin_bottom'       => (string)$pdfMarginBottom,
@@ -282,14 +292,11 @@ ob_start();
             <?php if ($logoPath && file_exists(BASE_PATH . '/' . $logoPath)): ?>
             <div style="margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
                 <img src="<?= e(base_url($logoPath)) ?>" alt="Logo" style="height:40px;max-width:200px">
-                <form method="post" style="margin:0">
-                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                    <input type="hidden" name="action" value="delete_logo">
-                    <button type="submit" class="btn btn--ghost btn--sm"
-                            onclick="return confirm('Logo wirklich entfernen?')">
-                        <i class="fa-solid fa-trash" aria-hidden="true"></i> Logo entfernen
-                    </button>
-                </form>
+                <?php /* Button gehört per form-Attribut zu #delete-logo-form (außerhalb, keine verschachtelten Formulare) */ ?>
+                <button type="submit" form="delete-logo-form" class="btn btn--ghost btn--sm"
+                        onclick="return confirm('Logo wirklich entfernen?')">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i> Logo entfernen
+                </button>
             </div>
             <?php endif; ?>
             <input type="file" id="site_logo" name="site_logo" accept="image/png,image/jpeg">
@@ -311,10 +318,42 @@ ob_start();
                 <input type="number" id="max_receipt_size_mb" name="max_receipt_size_mb"
                        value="<?= (int)($s['max_receipt_size_mb'] ?? 5) ?>" min="1" max="50">
             </div>
+        </div>
+
+        <p class="form-hint" style="margin-bottom:.5rem;font-weight:600"><?= e(__('admin.settings.retention_title')) ?></p>
+        <p class="form-hint" style="margin-bottom:.75rem"><?= e(__('admin.settings.retention_hint')) ?></p>
+        <div class="form-row" style="flex-wrap:wrap;gap:1rem">
+            <div class="form-group" style="flex:1;min-width:200px">
+                <label for="inactivity_months"><?= e(__('admin.settings.inactivity_months')) ?></label>
+                <input type="number" id="inactivity_months" name="inactivity_months"
+                       value="<?= (int)($s['inactivity_months'] ?? 9) ?>" min="0" max="120">
+            </div>
+            <div class="form-group" style="flex:1;min-width:200px">
+                <label for="archive_warning_days"><?= e(__('admin.settings.archive_warning_days')) ?></label>
+                <input type="number" id="archive_warning_days" name="archive_warning_days"
+                       value="<?= (int)($s['archive_warning_days'] ?? 30) ?>" min="0" max="365">
+            </div>
+            <div class="form-group" style="flex:1;min-width:200px">
+                <label for="settled_archive_months"><?= e(__('admin.settings.settled_archive_months')) ?></label>
+                <input type="number" id="settled_archive_months" name="settled_archive_months"
+                       value="<?= (int)($s['settled_archive_months'] ?? 1) ?>" min="0" max="120">
+            </div>
+        </div>
+        <div class="form-row" style="flex-wrap:wrap;gap:1rem">
+            <div class="form-group" style="flex:1;min-width:200px">
+                <label for="archive_extend_months"><?= e(__('admin.settings.archive_extend_months')) ?></label>
+                <input type="number" id="archive_extend_months" name="archive_extend_months"
+                       value="<?= (int)($s['archive_extend_months'] ?? 1) ?>" min="1" max="120">
+            </div>
             <div class="form-group" style="flex:1;min-width:150px">
                 <label for="cleanup_days"><?= e(__('admin.settings.cleanup_days')) ?></label>
                 <input type="number" id="cleanup_days" name="cleanup_days"
-                       value="<?= (int)($s['cleanup_days'] ?? 90) ?>" min="0">
+                       value="<?= (int)($s['cleanup_days'] ?? 30) ?>" min="0">
+            </div>
+            <div class="form-group" style="flex:1;min-width:200px">
+                <label for="empty_group_days"><?= e(__('admin.settings.empty_group_days')) ?></label>
+                <input type="number" id="empty_group_days" name="empty_group_days"
+                       value="<?= (int)($s['empty_group_days'] ?? 90) ?>" min="0">
             </div>
         </div>
 
@@ -364,6 +403,12 @@ ob_start();
 
         <button type="submit" class="btn btn--primary"><?= e(__('common.save')) ?></button>
     </form>
+    <?php if ($logoPath && file_exists(BASE_PATH . '/' . $logoPath)): ?>
+    <form method="post" id="delete-logo-form" style="display:none">
+        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+        <input type="hidden" name="action" value="delete_logo">
+    </form>
+    <?php endif; ?>
 </div>
 
 <!-- Email settings -->

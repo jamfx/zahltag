@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
-$cleanupDays = (int)setting('cleanup_days', 90);
+$archiveCfg   = archive_settings();
+$cleanupDays = $archiveCfg['cleanup_days'];
+$inactMonths = $archiveCfg['inactivity_months'];
+$warnDays    = $archiveCfg['warning_days'];
+$settledMo   = $archiveCfg['settled_months'];
+$extendMo    = $archiveCfg['extend_months'];
+$emptyDays   = $archiveCfg['empty_days'];
 $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
 ?>
 <div style="max-width:760px;margin-inline:auto;">
@@ -81,7 +87,13 @@ $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
         ],
         [
             'q' => 'How long does my group stay online?',
-            'a' => "Indefinitely, as long as it's actively used. Archived groups and empty groups with no expenses are automatically deleted after currently {$cleanupDays}&nbsp;days (configurable by the instance operator).",
+            'a' => "As long as it is being used. "
+                 . ($inactMonths > 0 ? "Groups without activity (new expenses, payments or members) are archived automatically after {$inactMonths}&nbsp;months; all members see a notice {$warnDays}&nbsp;days beforehand. " : "")
+                 . ($settledMo > 0 ? "Once all amounts are settled (group completed), it is archived after {$settledMo}&nbsp;month(s); a notice is shown beforehand as well. " : "")
+                 . "The group admin can postpone archiving by {$extendMo}&nbsp;month(s) via the notice; new activity cancels it as well. "
+                 . ($cleanupDays > 0 ? "Archived groups are permanently deleted after {$cleanupDays}&nbsp;days" : "Archived groups are kept")
+                 . ($emptyDays > 0 ? ", empty groups without expenses after {$emptyDays}&nbsp;days." : ".")
+                 . " All periods can be configured by the instance operator.",
         ],
         [
             'q' => 'Can I print the settlement or take it offline?',
@@ -179,7 +191,7 @@ $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
                     </tr>
                     <tr>
                         <td>Archive</td>
-                        <td>Marks the group as finished. Archived groups are automatically deleted after the configured retention period (see FAQ above).</td>
+                        <td>Marks the group as finished. Archived groups are read-only and are automatically deleted after <?= (int)$cleanupDays ?>&nbsp;days (see FAQ above).</td>
                     </tr>
                     <tr>
                         <td>Delete</td>
@@ -283,7 +295,7 @@ $maxReceiptMb = max(1, (int)setting('max_receipt_size_mb', 5));
             <li>Access works through long, random links (tokens) instead of user accounts. Anyone who knows a link has access to that view – don't share links publicly.</li>
             <li>Receipt photos and PDFs are not directly accessible over the internet, only to logged-in members of the respective group.</li>
             <li>Payment details (IBAN, PayPal, Wero) are only visible to active members of the same group.</li>
-            <li>Archived and empty groups are automatically deleted, including all data, once the retention period expires.</li>
+            <li>Inactive and settled groups are archived automatically (a notice is shown beforehand). Archived groups are deleted including all data after <?= (int)$cleanupDays ?>&nbsp;days, empty groups after <?= (int)$emptyDays ?>&nbsp;days.</li>
         </ul>
     </div>
 

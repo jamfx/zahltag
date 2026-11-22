@@ -19,18 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable) {}
         flash('success', __('admin.dashboard.archive'));
     } elseif ($action === 'delete' && $groupId) {
-        // Delete receipt files first
-        try {
-            $stmtR = db()->prepare(
-                'SELECT receipt_path FROM expenses WHERE group_id = ? AND receipt_path IS NOT NULL'
-            );
-            $stmtR->execute([$groupId]);
-            foreach ($stmtR->fetchAll() as $row) {
-                $fp = BASE_PATH . '/' . ltrim($row['receipt_path'], '/');
-                if (file_exists($fp)) @unlink($fp);
-            }
-            db()->prepare('DELETE FROM groups WHERE id = ?')->execute([$groupId]);
-        } catch (Throwable) {}
+        delete_group_completely($groupId);
         flash('success', __('admin.dashboard.delete'));
     }
     redirect('/admin/dashboard');
